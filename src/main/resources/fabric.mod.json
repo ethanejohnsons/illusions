@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"id": "illusions",
+	"version": "${version}",
+	"name": "Illusions",
+	"license": "MIT",
+	"environment": "*",
+	"icon": "assets/illusions/icon.png",
+	"entrypoints": {
+		"main": [ "dev.bluevista.illusions.IllusionsMod" ],
+		"client": [ "dev.bluevista.illusions.IllusionsMod" ]
+	},
+	"mixins": [ "illusions.mixins.json" ],
+	"accessWidener": "illusions.accessWidener",
+	"depends": {
+		"minecraft": ">=1.21",
+		"fabricloader": "*",
+		"fabric": "*"
+	}
+}

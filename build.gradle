@@ -1,0 +1,59 @@
+plugins {
+	id 'fabric-loom' version "$loom_version"
+}
+
+version = mod_version + "+" + minecraft_version
+group = maven_group
+
+def targetJavaVersion = 17
+tasks.withType(JavaCompile).configureEach {
+	it.options.encoding = "UTF-8"
+	if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+		it.options.release = targetJavaVersion
+	}
+}
+
+java {
+	def javaVersion = JavaVersion.toVersion(targetJavaVersion)
+	if (JavaVersion.current() < javaVersion) {
+		toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+	}
+	archivesBaseName = project.archives_base_name
+	withSourcesJar()
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": project.version
+	}
+}
+
+loom {
+	accessWidenerPath = file("src/main/resources/illusions.accessWidener")
+}
+
+repositories {
+	maven {
+		name = 'Ladysnake Mods'
+		url = 'https://maven.ladysnake.org/releases'
+		content {
+			includeGroup 'io.github.ladysnake'
+			includeGroup 'org.ladysnake'
+			includeGroupByRegex 'dev\\.onyxstudios.*'
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:$minecraft_version"
+
+	// Fabric
+	mappings "net.fabricmc:yarn:$yarn_mappings:v2"
+	modImplementation "net.fabricmc:fabric-loader:$loader_version"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:$fabric_version"
+
+	// Misc
+	modImplementation(include("org.ladysnake:satin:$satin_version"))
+}

@@ -1,0 +1,8 @@
+{
+	"entity.illusions.mirror": "Mirror",
+
+	"item.illusions.normal_mirror" : "Mirror",
+	"item.illusions.swirl_mirror" : "Swirl Distortion Mirror",
+	"item.illusions.vertical_mirror" : "Vertical Distortion Mirror",
+	"item.illusions.wiggle_mirror" : "Wiggly Distortion Mirror"
+}
