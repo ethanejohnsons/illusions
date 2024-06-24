@@ -57,7 +57,7 @@ public class IllusionsMod implements ModInitializer, ClientModInitializer {
 	@Environment(EnvType.CLIENT)
 	public void onInitializeClient() {
 		EntityRendererRegistry.register(IllusionsMod.MIRROR_ENTITY, MirrorEntityRenderer::new);
-		WorldRenderEvents.AFTER_ENTITIES.register(MirrorRenderer::onRenderWorld);
+		WorldRenderEvents.LAST.register(MirrorRenderer::onRenderWorld);
 	}
 
 }

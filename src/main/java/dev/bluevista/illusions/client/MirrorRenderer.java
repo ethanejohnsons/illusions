@@ -11,8 +11,6 @@ import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gl.SimpleFramebuffer;
 import net.minecraft.client.option.GraphicsMode;
 import net.minecraft.client.render.BufferRenderer;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
@@ -20,6 +18,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
+import org.joml.Quaternionf;
 import org.ladysnake.satin.api.managed.ManagedCoreShader;
 import org.ladysnake.satin.api.managed.ShaderEffectManager;
 import org.ladysnake.satin.api.managed.uniform.Uniform1i;
@@ -33,35 +32,38 @@ public class MirrorRenderer {
 
 	public static final ManagedCoreShader SHADER = ShaderEffectManager.getInstance().manageCoreShader(Identifier.of(IllusionsMod.MODID, "warp"), VertexFormats.POSITION_TEXTURE);
 	public static final Uniform1i DISTORTION_TYPE = SHADER.findUniform1i("DistortionType");
-	public static final int MAX_MIRRORS = 16;
+	public static final int MAX_MIRRORS_DEEP = 1;
 
-	public static Framebuffer FB;
-	public static boolean IS_DRAWING;
-	public static int MIRRORS_THIS_FRAME;
+	private static Framebuffer framebuffer;
+	private static int mirrorsDeep;
+
+	public static boolean isDrawing() {
+		return mirrorsDeep > 0;
+	}
+
+	public static Framebuffer getFramebuffer() {
+		return framebuffer;
+	}
 
 	public static void onResize(int width, int height) {
-		FB = new SimpleFramebuffer(width, height, true, false);
+		framebuffer = new SimpleFramebuffer(width, height, true, false);
 	}
 
 	public static void onRenderWorld(WorldRenderContext ctx) {
-		if (IS_DRAWING) return;
-
-		MIRRORS_THIS_FRAME = 0;
+		if (isDrawing()) return;
 
 		for (var entity : ctx.world().getEntities()) {
 			if (entity instanceof MirrorEntity mirror) {
 				renderMirror(
 					mirror,
 					ctx.matrixStack(),
-					ctx.consumers(),
-					ctx.camera(),
 					ctx.tickCounter().getTickDelta(false)
 				);
 			}
 		}
 	}
 
-	private static void renderMirror(MirrorEntity entity, MatrixStack matrices, VertexConsumerProvider vcp, Camera camera, float tickDelta) {
+	private static void renderMirror(MirrorEntity entity, MatrixStack matrices, float tickDelta) {
 		int tex = renderWorld(entity);
 		if (tex == -1) return;
 
@@ -72,13 +74,13 @@ public class MirrorRenderer {
 		DISTORTION_TYPE.set(entity.getDistortionType().ordinal());
 
 		var entityPos = entity.getLerpedPos(tickDelta);
-		var cameraPos = camera.getPos();
+		var cameraPos = MinecraftClient.getInstance().gameRenderer.getCamera().getPos();
 		var translation = entityPos.subtract(cameraPos);
 
 		matrices.push();
 		matrices.translate(translation.x, translation.y, translation.z);
 		matrices.multiply(entity.getFacing().getRotationQuaternion());
-		matrices.translate(0, 0.032, 0);
+		matrices.translate(0, 0.033, 0);
 
 		var buffer = RenderSystem.renderThreadTesselator().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
 		float width = 0.2f;
@@ -104,13 +106,12 @@ public class MirrorRenderer {
 	 * blah
 	 */
 	private static int renderWorld(MirrorEntity entity) {
-		if (FB == null) return -1;
-		if (MIRRORS_THIS_FRAME >= MAX_MIRRORS) return -1;
 		if (MinecraftClient.getInstance().options.getGraphicsMode().getValue() == GraphicsMode.FABULOUS) return -1;
 
-		MIRRORS_THIS_FRAME++;
+		var framebuffer = getFramebuffer();
+		if (framebuffer == null) return -1;
 
-		FB.clear(MinecraftClient.IS_SYSTEM_MAC);
+		framebuffer.clear(MinecraftClient.IS_SYSTEM_MAC);
 
 		var client = MinecraftClient.getInstance();
 		var camera = client.gameRenderer.getCamera();
@@ -133,24 +134,24 @@ public class MirrorRenderer {
 
 			// Set camera position and rotation
 			camera.pos = new Vec3d(position);
-			camera.setRotation(-direction.asRotation(), 0);
+			camera.setRotation(direction.asRotation() , 0);
 			var cameraRotation = camera.getRotation();
 
 			// Set up frustum
-			var rotMat = new Matrix4f().rotate(cameraRotation);
-			var projMat = client.gameRenderer.getBasicProjectionMatrix(client.options.getFov().getValue());
+			var rotMat = new Matrix4f().rotate(cameraRotation.conjugate(new Quaternionf()));
+			var projMat = client.gameRenderer.getBasicProjectionMatrix(70f);
 			client.worldRenderer.setupFrustum(camera.getPos(), rotMat, projMat);
-			RenderSystem.viewport(0, 0, FB.textureWidth, FB.textureHeight);
+			RenderSystem.viewport(0, 0, framebuffer.textureWidth, framebuffer.textureHeight);
 
 			// Draw the world
-			IS_DRAWING = true;
-			FB.beginWrite(true);
-			client.getWindow().setFramebufferWidth(FB.textureWidth);
-			client.getWindow().setFramebufferHeight(FB.textureHeight);
+			mirrorsDeep++;
+			framebuffer.beginWrite(true);
+			client.getWindow().setFramebufferWidth(framebuffer.textureWidth);
+			client.getWindow().setFramebufferHeight(framebuffer.textureHeight);
 			client.gameRenderer.loadProjectionMatrix(projMat);
 			RenderSystem.modelViewStack = new Matrix4fStack(16);
 			client.worldRenderer.render(client.getRenderTickCounter(), false, camera, client.gameRenderer, client.gameRenderer.getLightmapTextureManager(), rotMat, projMat);
-			IS_DRAWING = false;
+			mirrorsDeep--;
 
 			// Restore original values
 			client.getFramebuffer().beginWrite(false);
@@ -165,9 +166,10 @@ public class MirrorRenderer {
 			RenderSystem.viewport(0, 0, client.getWindow().getFramebufferWidth(), client.getWindow().getFramebufferHeight());
 
 			// Return the texture ID
-			return FB.getColorAttachment();
+			return framebuffer.getColorAttachment();
 		} catch (Exception ex) {
-			throw new RuntimeException(ex);
+			ex.printStackTrace();
+			return -1;
 		}
 	}
 

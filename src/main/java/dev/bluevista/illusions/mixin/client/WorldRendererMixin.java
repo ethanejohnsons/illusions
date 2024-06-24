@@ -7,6 +7,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
+/**
+ * Allows the client player to be seen in mirrors.
+ */
 @Mixin(WorldRenderer.class)
 public class WorldRendererMixin {
 
@@ -18,22 +21,7 @@ public class WorldRendererMixin {
 		)
 	)
 	public boolean illusions$render$isThirdPerson(Camera camera) {
-		return camera.isThirdPerson() || MirrorRenderer.IS_DRAWING;
-	}
-
-	@Redirect(
-		method = "onResized",
-		at = @At(
-			value = "INVOKE",
-			target = "Lnet/minecraft/client/render/WorldRenderer;scheduleTerrainUpdate()V"
-		)
-	)
-	public void illusions$onResized$scheduleTerrainUpdate(WorldRenderer worldRenderer) {
-		if (MirrorRenderer.IS_DRAWING) {
-			// NO-OP
-		} else {
-			worldRenderer.scheduleTerrainUpdate();
-		}
+		return camera.isThirdPerson() || MirrorRenderer.isDrawing();
 	}
 
 }

@@ -7,6 +7,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Resize our mirror buffer any time the game's framebuffer is resized.
+ */
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
 
