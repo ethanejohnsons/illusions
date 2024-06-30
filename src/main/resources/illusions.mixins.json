@@ -9,6 +9,7 @@
 	"client": [
 		"client.GameRendererMixin",
 		"client.MinecraftClientMixin",
-		"client.WorldRendererMixin"
+		"client.WorldRendererMixin",
+		"client.compat.IrisWorldRendererMixin"
 	]
 }

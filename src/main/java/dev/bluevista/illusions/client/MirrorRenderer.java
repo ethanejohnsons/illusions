@@ -1,7 +1,6 @@
 package dev.bluevista.illusions.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import dev.bluevista.illusions.compat.Iris;
 import dev.bluevista.illusions.entity.MirrorEntity;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -47,11 +46,10 @@ public class MirrorRenderer {
 		return mirrorsDeep > 0;
 	}
 
+	@SuppressWarnings("BooleanMethodIsAlwaysInverted")
 	public static boolean canDraw() {
 		boolean fabulous = MinecraftClient.getInstance().options.getGraphicsMode().getValue() == GraphicsMode.FABULOUS;
-		boolean iris = Iris.isInstalled();
-
-		return !iris && !fabulous && mirrorsDeep < MAX_MIRRORS_DEEP;
+		return !fabulous && mirrorsDeep < MAX_MIRRORS_DEEP;
 	}
 
 	@Nullable

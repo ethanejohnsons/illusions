@@ -21,7 +21,7 @@ import net.minecraft.util.Identifier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class IllusionsMod implements ModInitializer, ClientModInitializer {
+public class IllusionsMod implements ModInitializer {
 
 	public static final String MODID = "illusions";
 	public static final Logger LOGGER = LogManager.getLogger("Illusions");
@@ -53,11 +53,5 @@ public class IllusionsMod implements ModInitializer, ClientModInitializer {
 		LOGGER.info("Mirror, mirror...");
 	}
 
-	@Override
-	@Environment(EnvType.CLIENT)
-	public void onInitializeClient() {
-		EntityRendererRegistry.register(IllusionsMod.MIRROR_ENTITY, MirrorEntityRenderer::new);
-		WorldRenderEvents.LAST.register(MirrorRenderer::onRenderWorld);
-	}
 
 }
