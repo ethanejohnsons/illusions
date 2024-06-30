@@ -56,7 +56,6 @@ public class IllusionsMod implements ModInitializer, ClientModInitializer {
 	@Override
 	@Environment(EnvType.CLIENT)
 	public void onInitializeClient() {
-		System.load("/home/ethanejohnsons/IdeaProjects/archimedes/run/librenderdoc.so");
 		EntityRendererRegistry.register(IllusionsMod.MIRROR_ENTITY, MirrorEntityRenderer::new);
 		WorldRenderEvents.LAST.register(MirrorRenderer::onRenderWorld);
 	}

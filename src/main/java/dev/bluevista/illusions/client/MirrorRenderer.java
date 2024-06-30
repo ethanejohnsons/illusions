@@ -1,7 +1,7 @@
 package dev.bluevista.illusions.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import dev.bluevista.illusions.IllusionsMod;
+import dev.bluevista.illusions.compat.Iris;
 import dev.bluevista.illusions.entity.MirrorEntity;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -26,6 +26,8 @@ import org.ladysnake.satin.api.managed.ManagedCoreShader;
 import org.ladysnake.satin.api.managed.ShaderEffectManager;
 import org.ladysnake.satin.api.managed.uniform.Uniform1i;
 
+import static dev.bluevista.illusions.IllusionsMod.MODID;
+
 /**
  * Over all not the best...
  * but also not that bad for a <24 hour turnaround time
@@ -33,8 +35,9 @@ import org.ladysnake.satin.api.managed.uniform.Uniform1i;
 @Environment(EnvType.CLIENT)
 public class MirrorRenderer {
 
-	public static final ManagedCoreShader SHADER = ShaderEffectManager.getInstance().manageCoreShader(Identifier.of(IllusionsMod.MODID, "warp"), VertexFormats.POSITION_TEXTURE);
+	public static final ManagedCoreShader SHADER = ShaderEffectManager.getInstance().manageCoreShader(Identifier.of(MODID, "warp"), VertexFormats.POSITION_TEXTURE);
 	public static final Uniform1i DISTORTION_TYPE = SHADER.findUniform1i("DistortionType");
+	public static final Identifier MIRROR_PLACEHOLDER_TEXTURE = Identifier.of(MODID, "textures/mirror_placeholder.png");
 	public static final int MAX_MIRRORS_DEEP = 3;
 
 	private static final Framebuffer[] framebuffers = new Framebuffer[MAX_MIRRORS_DEEP];
@@ -45,7 +48,10 @@ public class MirrorRenderer {
 	}
 
 	public static boolean canDraw() {
-		return mirrorsDeep < MAX_MIRRORS_DEEP;
+		boolean fabulous = MinecraftClient.getInstance().options.getGraphicsMode().getValue() == GraphicsMode.FABULOUS;
+		boolean iris = Iris.isInstalled();
+
+		return !iris && !fabulous && mirrorsDeep < MAX_MIRRORS_DEEP;
 	}
 
 	@Nullable
@@ -61,8 +67,6 @@ public class MirrorRenderer {
 	}
 
 	public static void onRenderWorld(WorldRenderContext ctx) {
-		if (!canDraw()) return;
-
 		for (var entity : ctx.world().getEntities()) {
 			if (entity instanceof MirrorEntity mirror) {
 				var cameraPos = ctx.camera().getPos();
@@ -72,7 +76,7 @@ public class MirrorRenderer {
 				float epsilon = 180;
 
 				// Check if the camera can see the surface of the mirror.
-				// No sense drawing recursive mirrors that you can't even see.
+				// No sense drawing the entire viewport again for mirrors (or even recursive ones) that you can't see.
 				if (
 					entityPos.distanceTo(cameraPos) < 128.0 &&
 					entity.getWorld().raycast(new RaycastContext(cameraPos, entityPos, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, entity)).getType() == HitResult.Type.MISS &&
@@ -92,7 +96,9 @@ public class MirrorRenderer {
 
 	private static void renderMirror(MirrorEntity entity, MatrixStack matrices, float tickDelta) {
 		int tex = renderWorld(entity);
-		if (tex == -1) return;
+		if (tex == -1) {
+			tex = MinecraftClient.getInstance().getTextureManager().getTexture(MIRROR_PLACEHOLDER_TEXTURE).getGlId();
+		}
 
 		RenderSystem.setShader(SHADER::getProgram);
 		RenderSystem.setShaderTexture(0, tex);
@@ -100,8 +106,9 @@ public class MirrorRenderer {
 
 		DISTORTION_TYPE.set(entity.getDistortionType().ordinal());
 
+		var camera = MinecraftClient.getInstance().gameRenderer.getCamera();
 		var entityPos = entity.getLerpedPos(tickDelta);
-		var cameraPos = MinecraftClient.getInstance().gameRenderer.getCamera().getPos();
+		var cameraPos = camera.getPos();
 		var translation = entityPos.subtract(cameraPos);
 
 		matrices.push();
@@ -133,8 +140,7 @@ public class MirrorRenderer {
 	 * blah
 	 */
 	private static int renderWorld(MirrorEntity entity) {
-		if (MinecraftClient.getInstance().options.getGraphicsMode().getValue() == GraphicsMode.FABULOUS) return -1;
-
+		if (!canDraw()) return -1;
 
 		var client = MinecraftClient.getInstance();
 		var camera = client.gameRenderer.getCamera();
