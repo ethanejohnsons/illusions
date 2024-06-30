@@ -117,20 +117,22 @@ public class MirrorRenderer {
 		matrices.translate(0, 0.033, 0);
 
 		var buffer = RenderSystem.renderThreadTesselator().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
-		float width = 0.2f;
-		float height = 0.5f;
+		float tWidth = 0.2f;
+		float tHeight = 0.5f;
+		float vWidth = 0.45f;
+		float vHeight = 0.95f;
 		buffer
-			.vertex(matrices.peek().getPositionMatrix(), -0.45f, 0.0f, -0.95f)
-			.texture(0.5f + width, 0.5f + height);
+			.vertex(matrices.peek().getPositionMatrix(), -vWidth, 0.0f, -vHeight)
+			.texture(0.5f + tWidth, 0.5f + tHeight);
 		buffer
-			.vertex(matrices.peek().getPositionMatrix(), -0.45f, 0.0f, 0.95f)
-			.texture(0.5f + width, 0.5f - height);
+			.vertex(matrices.peek().getPositionMatrix(), -vWidth, 0.0f, vHeight)
+			.texture(0.5f + tWidth, 0.5f - tHeight);
 		buffer
-			.vertex(matrices.peek().getPositionMatrix(), 0.45f, 0.0f, 0.95f)
-			.texture(0.5f - width,  0.5f - height);
+			.vertex(matrices.peek().getPositionMatrix(), vWidth, 0.0f, vHeight)
+			.texture(0.5f - tWidth,  0.5f - tHeight);
 		buffer
-			.vertex(matrices.peek().getPositionMatrix(), 0.45f, 0.0f, -0.95f)
-			.texture(0.5f - width, 0.5f + height);
+			.vertex(matrices.peek().getPositionMatrix(), vWidth, 0.0f, -vHeight)
+			.texture(0.5f - tWidth, 0.5f + tHeight);
 		BufferRenderer.drawWithGlobalProgram(buffer.end());
 
 		matrices.pop();
