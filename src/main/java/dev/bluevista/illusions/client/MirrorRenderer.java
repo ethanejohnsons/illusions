@@ -15,7 +15,10 @@ import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 import org.joml.Quaternionf;
@@ -32,33 +35,57 @@ public class MirrorRenderer {
 
 	public static final ManagedCoreShader SHADER = ShaderEffectManager.getInstance().manageCoreShader(Identifier.of(IllusionsMod.MODID, "warp"), VertexFormats.POSITION_TEXTURE);
 	public static final Uniform1i DISTORTION_TYPE = SHADER.findUniform1i("DistortionType");
-	public static final int MAX_MIRRORS_DEEP = 1;
+	public static final int MAX_MIRRORS_DEEP = 3;
 
-	private static Framebuffer framebuffer;
+	private static final Framebuffer[] framebuffers = new Framebuffer[MAX_MIRRORS_DEEP];
 	private static int mirrorsDeep;
 
 	public static boolean isDrawing() {
 		return mirrorsDeep > 0;
 	}
 
+	public static boolean canDraw() {
+		return mirrorsDeep < MAX_MIRRORS_DEEP;
+	}
+
+	@Nullable
 	public static Framebuffer getFramebuffer() {
-		return framebuffer;
+		if (!canDraw()) return null;
+		return framebuffers[mirrorsDeep - 1];
 	}
 
 	public static void onResize(int width, int height) {
-		framebuffer = new SimpleFramebuffer(width, height, true, false);
+		for (int i = 0; i < framebuffers.length; i++) {
+			framebuffers[i] = new SimpleFramebuffer(width, height, true, false);
+		}
 	}
 
 	public static void onRenderWorld(WorldRenderContext ctx) {
-		if (isDrawing()) return;
+		if (!canDraw()) return;
 
 		for (var entity : ctx.world().getEntities()) {
 			if (entity instanceof MirrorEntity mirror) {
-				renderMirror(
-					mirror,
-					ctx.matrixStack(),
-					ctx.tickCounter().getTickDelta(false)
-				);
+				var cameraPos = ctx.camera().getPos();
+				var entityPos = entity.getPos();
+				float cameraYaw = ctx.camera().getYaw();
+				float entityYaw = mirror.getYaw();
+				float epsilon = 180;
+
+				// Check if the camera can see the surface of the mirror.
+				// No sense drawing recursive mirrors that you can't even see.
+				if (
+					entityPos.distanceTo(cameraPos) < 128.0 &&
+					entity.getWorld().raycast(new RaycastContext(cameraPos, entityPos, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, entity)).getType() == HitResult.Type.MISS &&
+					Math.abs(entityYaw - cameraYaw) % 360 < 180 + epsilon && Math.abs(entityYaw - cameraYaw) % 360 > 180 - epsilon
+				) {
+
+					renderMirror(
+						mirror,
+						ctx.matrixStack(),
+						ctx.tickCounter().getTickDelta(false)
+					);
+
+				}
 			}
 		}
 	}
@@ -108,10 +135,6 @@ public class MirrorRenderer {
 	private static int renderWorld(MirrorEntity entity) {
 		if (MinecraftClient.getInstance().options.getGraphicsMode().getValue() == GraphicsMode.FABULOUS) return -1;
 
-		var framebuffer = getFramebuffer();
-		if (framebuffer == null) return -1;
-
-		framebuffer.clear(MinecraftClient.IS_SYSTEM_MAC);
 
 		var client = MinecraftClient.getInstance();
 		var camera = client.gameRenderer.getCamera();
@@ -141,10 +164,23 @@ public class MirrorRenderer {
 			var rotMat = new Matrix4f().rotate(cameraRotation.conjugate(new Quaternionf()));
 			var projMat = client.gameRenderer.getBasicProjectionMatrix(70f);
 			client.worldRenderer.setupFrustum(camera.getPos(), rotMat, projMat);
-			RenderSystem.viewport(0, 0, framebuffer.textureWidth, framebuffer.textureHeight);
+			RenderSystem.viewport(
+				0, 0,
+				MinecraftClient.getInstance().getFramebuffer().textureWidth,
+				MinecraftClient.getInstance().getFramebuffer().textureHeight
+			);
+
 
 			// Draw the world
 			mirrorsDeep++;
+
+			var framebuffer = getFramebuffer();
+			if (framebuffer == null) {
+				mirrorsDeep--;
+				return -1;
+			}
+			framebuffer.clear(MinecraftClient.IS_SYSTEM_MAC);
+
 			framebuffer.beginWrite(true);
 			client.getWindow().setFramebufferWidth(framebuffer.textureWidth);
 			client.getWindow().setFramebufferHeight(framebuffer.textureHeight);
@@ -152,6 +188,7 @@ public class MirrorRenderer {
 			RenderSystem.modelViewStack = new Matrix4fStack(16);
 			client.worldRenderer.render(client.getRenderTickCounter(), false, camera, client.gameRenderer, client.gameRenderer.getLightmapTextureManager(), rotMat, projMat);
 			mirrorsDeep--;
+
 
 			// Restore original values
 			client.getFramebuffer().beginWrite(false);

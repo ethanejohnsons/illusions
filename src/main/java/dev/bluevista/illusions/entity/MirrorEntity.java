@@ -55,7 +55,7 @@ public class MirrorEntity extends AbstractDecorationEntity {
 
 	@Override
 	public void writeCustomDataToNbt(NbtCompound nbt) {
-		nbt.putByte("facing", (byte)this.facing.getHorizontal());
+		nbt.putByte("facing", (byte) facing.getHorizontal());
 		nbt.putInt("distortion", getDistortionType().ordinal());
 		super.writeCustomDataToNbt(nbt);
 	}

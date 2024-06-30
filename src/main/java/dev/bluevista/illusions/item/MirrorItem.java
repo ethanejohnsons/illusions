@@ -22,22 +22,26 @@ public class MirrorItem extends Item {
 
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext ctx) {
-		var playerEntity = ctx.getPlayer();
-		if (playerEntity != null && !canPlaceOn(playerEntity, ctx.getSide(), ctx.getStack(), ctx.getBlockPos().offset(ctx.getSide()))) {
+		var player = ctx.getPlayer();
+		var stack = ctx.getStack();
+		var blockPos = ctx.getBlockPos();
+		var side = ctx.getSide();
+		var world = ctx.getWorld();
+
+		if (player != null && !canPlaceOn(player, side, stack, blockPos.offset(ctx.getSide()))) {
 			return ActionResult.FAIL;
 		}
 
-		var world = ctx.getWorld();
-		var entity = MirrorEntity.place(world, ctx.getBlockPos().offset(ctx.getSide()), ctx.getSide(), distortionType);
+		var entity = MirrorEntity.place(world, blockPos.offset(side), side, distortionType);
 
 		if (entity.canStayAttached()) {
 			if (!world.isClient) {
 				entity.onPlace();
-				world.emitGameEvent(playerEntity, GameEvent.ENTITY_PLACE, entity.getPos());
+				world.emitGameEvent(player, GameEvent.ENTITY_PLACE, entity.getPos());
 				world.spawnEntity(entity);
 			}
 
-			ctx.getStack().decrement(1);
+			stack.decrement(1);
 			return ActionResult.success(world.isClient);
 		} else {
 			return ActionResult.CONSUME;

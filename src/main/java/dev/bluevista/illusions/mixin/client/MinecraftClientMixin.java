@@ -17,7 +17,10 @@ public class MinecraftClientMixin {
 	@Inject(method = "getFramebuffer", at = @At("HEAD"), cancellable = true)
 	public void illusions$getFramebuffer$HEAD(CallbackInfoReturnable<Framebuffer> cir) {
 		if (MirrorRenderer.isDrawing()) {
-			cir.setReturnValue(MirrorRenderer.getFramebuffer());
+			var framebuffer = MirrorRenderer.getFramebuffer();
+			if (framebuffer != null) {
+				cir.setReturnValue(framebuffer);
+			}
 		}
 	}
 
